@@ -4,11 +4,20 @@ from bs4 import BeautifulSoup
 
 class BlogSpider(scrapy.Spider):
     name = "blogspider"
-    start_urls = [
-        "https://www.moneycontrol.com/stocks/marketstats/indexcomp.php?optex=NSE&opttopic=indexcomp&index=9"
-    ]
+    bse_url_codes = ["1", "2", "4", "12", "63", "67", "100"]
+    start_urls = []
+    bse_url_base = "https://www.moneycontrol.com/stocks/marketstats/indexcomp.php?optex=BSE&opttopic=indexcomp&index="
+    for cd in bse_url_codes:
+        start_urls.append(bse_url_base + cd)
+    # start_urls = [
+    #     "https://www.moneycontrol.com/stocks/marketstats/indexcomp.php?optex=BSE&opttopic=indexcomp&index=1",
+    # ]
 
     def parse(self, response):
+        index_name = BeautifulSoup(
+            response.css("p.gL_12.PT15 > b").get(), "html.parser"
+        ).string
+
         table_data = response.css("table.tbldata14").get()
         soup = BeautifulSoup(table_data, "html.parser")
 
@@ -17,8 +26,7 @@ class BlogSpider(scrapy.Spider):
         first_head = heads_row.contents[1].contents[1].b.string
         second_head = heads_row.contents[3].contents[0].b.string
         third_head = (
-            heads_row.contents[5].contents[0] + " " +
-            heads_row.contents[5].contents[2]
+            heads_row.contents[5].contents[0] + " " + heads_row.contents[5].contents[2]
         )
         fourth_head = heads_row.contents[7].string
         fifth_head = heads_row.contents[9].string
@@ -38,10 +46,8 @@ class BlogSpider(scrapy.Spider):
         ]
 
         core_data = []
-        # for
         table_rows = soup.contents[0].contents
         for i in range(2, len(table_rows)):
-            # table_core_data = soup.contents[0].contents[3]
             table_core_data = table_rows[i]
 
             if not table_core_data == "\n":
@@ -51,7 +57,19 @@ class BlogSpider(scrapy.Spider):
                 col4 = table_core_data.contents[7].string
                 col5 = table_core_data.contents[9].string
                 col6 = table_core_data.contents[11].string.replace(",", "")
-                row_data = [col1, col2, col3, col4, col5, col6]
+                row_data = {
+                    first_head: col1,
+                    second_head: col2,
+                    third_head: col3,
+                    fourth_head: col4,
+                    fifth_head: col5,
+                    sixth_head: col6,
+                }
                 core_data.append(row_data)
 
-        print(core_data)
+        yield {index_name: core_data}
+
+        # index_links = response.css("div.lftmenu > ul > li > a").get()
+        # yield from response.follow_all(index_links, callback=self.parse)
+
+        # print(len(index_links))
